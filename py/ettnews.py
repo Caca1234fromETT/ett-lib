@@ -1,6 +1,5 @@
-ETTNEWS_KEY = ""
+ETTNEWS_KEY = "pcu272/enn/"
 # ETTNEWS_KEY should be correct otherwise you'll have an error
-# v2.12 (use at your own risk)
 
 import json
 import ett
@@ -136,7 +135,7 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
         article_list_line = "/" + article_url + " \t" 
         if authored_titles: # Put author names before article titles
             article_list_line += item["author"] + ": "
-        article_list_article_title = (item["title"] + (" (" + item["date"] + ")" if len(item["date"]) > 0 else ""))[:title_length]
+        article_list_article_title = (item["title"] + (" (" + item["date"] + ")" if len(item["date"]) > 0 else ""))[:root_title_length]
         article_list_line += article_list_article_title
         article_list = "\n" + article_list_line + article_list
         
