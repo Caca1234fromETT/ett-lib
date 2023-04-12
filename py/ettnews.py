@@ -32,18 +32,10 @@ def get_data_string_local(data, key, placeholder):
         return data["strings"][key]
     return placeholder
 
-# [unused?] sets local data string
-def set_data_string_local(data, key, value):
-    data["strings"][key] = value
-
-# posts stringified JSON data containing modified data strings
-# name: name of the root page to display
-# key: name of the string
-# value: value of the string
-def set_data_string(name, key, value):
-    data = get_enn(get_enn_url(name))
-    set_data_string_local(data, key, value)
-    post_enn(get_enn_url(name), data)
+def get_article_property_local(article_data, key, placeholder):
+    if key in article_data:
+        return article_data[key]
+    return placeholder
 
 # returns the index of the last character preceding a paragraph end or the end of file
 def get_article_start_end(content):
@@ -59,9 +51,11 @@ def get_article_start(content):
         return content
     return content[:index] + "\n\n(continue reading at article page)"
 
-# [unused?]
-def get_article_with_ad(content, ad, index):
-    return content[:index] + "\n\n═══════════════════════════════════════════════\n[AD] " + ad + "\n═══════════════════════════════════════════════" + content[index:]
+def format_content(content_data, content_type):
+    if content_type == "book":
+        pass
+    else: # raw text
+        return content_data
 
 def list_articles(name, num = 20, root_title_length = 50, show_featured = False, authored_titles = False):
     # Get JSON data
@@ -80,67 +74,46 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
     article_list = ""
     for x in range(start_index, length):
         item = data["art"][x]
-        content_data = item["content"]
         article_url = name + "/" + str(x + 1)
+        content_data = get_article_property_local(item, "content", "[Error 1]")
+        content_type = get_article_property_local(item, "type", None) # Get article type or None
+        content = format_content(content_data, content_type)
 
-        # Determine type of content (book-like content needs to be redone)
-        '''if type(content_data) is dict: # Book-like content
-            content = content_data["abstract"]
-            content += "\n\n[ Table of Contents ]"
-
-            # Add remaining sections
-            for y in range(0, len(content_data["pages"])):
-                print("Publishing subpage ", y)
-                subpage_data = content_data["pages"][y]
-
-                # Add subpage URL to table of contents
-                subpage_url = article_url + "/" + str(y + 1)
-                subpage_list_line = "/" + subpage_url + " \t" + subpage_data["title"]
-                content += "\n" + subpage_list_line
-
-                # Write on subpage
-                subpage_content = article_header + "\n"
-                # Add previous URL
-                if y > 0:
-                    subpage_content += "\nPrev: [/" + article_url + "/" + str(y) + "]"
-                # Add next URL
-                if y < len(content_data):
-                    subpage_content += "\nNext: [/" + article_url + "/" + str(y + 2) + "]"
-                subpage_content += "\n═════════════════════════════"
-                subpage_content += "\n\n" + item["title"] + "\n" + subpage_data["title"]
-                subpage_content += "\n\n" + subpage_data["content"]
-
-                # Post to article subpage
-                ett.post_async(subpage_url, subpage_content)
-        else: # Article-like content
-            content = content_data'''
-        content = content_data
+        # Get article metadata
+        title = get_article_property_local(item, "title", "[Error 2]")
+        author = get_article_property_local(item, "author", "Anonymous")
+        date = get_article_property_local(item, "date", None)
+        modification_date = get_article_property_local(item, "modif_date", None)
 
         # Add information source in parentheses to content start
         # (only if titles are not authored)
         if not authored_titles:
-            content = "(" + item["author"] + ") " + content
+            content = "(" + author + ") " + content
 
         # Post article page content
         page_content = ""
         page_content += article_header # Add header
-        page_content += "\n\n" + item["title"] + "\nAuthor: " + item["author"] + "\nDate: " + item["date"] # Add article metadata
-        # page_content += "\n\n" + get_article_with_ad(content, ad, get_article_start_end(content)) # Add article content with ads
-        page_content += "\n\n" + content # Add article content without ads
+        page_content += "\n\n" + title # Add article metadata
+        page_content += "\nAuthor: " + author
+        if date != None:
+            page_content += "\nDate: " + date # Add article creation date
+        if modification_date != None:
+            page_content += "\nLast modification: " + date # Add article modification date
+        page_content += "\n\n" + content # Add article content
         page_content += "\n\n═════════════════════════════"
-        page_content += "\n\nCite this article:\n" + item["author"] + ". (" + item["date"] + "). \"" + item["title"] + "\". Retrieved from /" + article_url
+        page_content += "\n\nCite this article:\n" + author + ". (" + (date if date != None else "n.d.") + "). \"" + title + "\". Retrieved from /" + article_url
         ett.post_async(article_url, page_content) # Post to article page
 
         # Add information to root page
         article_list_line = "/" + article_url + " \t" 
         if authored_titles: # Put author names before article titles
-            article_list_line += item["author"] + ": "
-        article_list_article_title = (item["title"] + (" (" + item["date"] + ")" if len(item["date"]) > 0 else ""))[:root_title_length]
+            article_list_line += author + ": "
+        article_list_article_title = (title + (" (" + date + ")" if len(date) != None else ""))[:root_title_length]
         article_list_line += article_list_article_title
         article_list = "\n" + article_list_line + article_list
         
         if (x == length - 1 and show_featured == True):
-            featured += "\n\n═════════════════════════════\n" + item["title"] + " (" + item["date"] + ")" + "\n\n" + get_article_start(content) + "\n\n═════════════════════════════"
+            featured += "\n\n═════════════════════════════\n" + title + (" (" + date + ")" if len(date) != None else "") + "\n\n" + get_article_start(content) + "\n\n═════════════════════════════"
 
     # Post root page content
     root_content = header + featured + "\n\n══ Articles ══" + article_list + "\n\n═════════════════════════════\nProvided by ETT News – tikolu.net/edit/news"
@@ -166,6 +139,7 @@ def add(name, title, author, has_date, content):
     elif has_date != False:
         datestr = has_date
     data["art"].append({"title": title, "author": author, "date": datestr, "content": content})
+    post_enn("pcu272/enn/" + name, data) # [remove]
     post_enn(name + "/json", data) # [remove]
     post_enn(get_enn_url(name), data)
 
