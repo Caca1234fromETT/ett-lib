@@ -5,6 +5,11 @@ import json
 import ett
 import datetime
 
+plugins = {}
+
+def use_plugin_local(name):
+    plugins[name] = __import__(name)
+
 # returns dictionary of JSON data
 # name: name of the root page containing the JSON data
 def get_enn(name):
@@ -52,10 +57,12 @@ def get_article_start(content):
     return content[:index] + "\n\n(continue reading at article page)"
 
 def format_content(content_data, content_type):
-    if content_type == "book":
-        pass
-    else: # raw text
+    if content_type == None: # raw text
         return content_data
+    else:
+        if content_type in plugins:
+            return plugins[content_type].format(content_data)
+        return "[Error 4]"
 
 def list_articles(name, num = 20, root_title_length = 50, show_featured = False, authored_titles = False):
     # Get JSON data
@@ -63,7 +70,8 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
     length = len(data["art"])
     header = get_data_string_local(data, "rootHeader", "/" + name)
     article_header = get_data_string_local(data, "articleHeader", "Article")
-    ads = get_data_string_local(data, "ads", ["Error: No ads."])
+    separator= get_data_string_local(data, "separator", "═════════════════════════════")
+    ads = get_data_string_local(data, "ads", ["[Error 3]"])
     ad = ads[int(datetime.datetime.now().strftime("%d")) % len(ads)]
 
     # Get start index
@@ -100,7 +108,7 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
         if modification_date != None:
             page_content += "\nLast modification: " + date # Add article modification date
         page_content += "\n\n" + content # Add article content
-        page_content += "\n\n═════════════════════════════"
+        page_content += "\n\n" + separator
         page_content += "\n\nCite this article:\n" + author + ". (" + (date if date != None else "n.d.") + "). \"" + title + "\". Retrieved from /" + article_url
         ett.post_async(article_url, page_content) # Post to article page
 
@@ -113,10 +121,10 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
         article_list = "\n" + article_list_line + article_list
         
         if (x == length - 1 and show_featured == True):
-            featured += "\n\n═════════════════════════════\n" + title + (" (" + date + ")" if len(date) != None else "") + "\n\n" + get_article_start(content) + "\n\n═════════════════════════════"
+            featured += "\n\n" + separator + "\n" + title + (" (" + date + ")" if len(date) != None else "") + "\n\n" + get_article_start(content) + "\n\n" + separator
 
     # Post root page content
-    root_content = header + featured + "\n\n══ Articles ══" + article_list + "\n\n═════════════════════════════\nProvided by ETT News – tikolu.net/edit/news"
+    root_content = header + featured + "\n\n══ Articles ══" + article_list + "\n\n" + separator + "\nProvided by ETT News – tikolu.net/edit/news"
     ett.post(name, root_content)
     ett.post("backup/" + name, root_content)
 
@@ -130,16 +138,18 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
 # adds an article to a page without updating the root page
 # name: root page
 # has_date: if True, the date will automatically be chosen. otherwise, it will display the date value of "has_date"
-def add(name, title, author, has_date, content):
+def add(name, title, author, has_date=None, content="", content_type=None):
     data = get_enn(get_enn_url(name))
     datestr = ""
     if has_date == True:
         date = datetime.datetime.now()
         datestr = date.strftime("%d") + " " + date.strftime("%B") + " " + date.strftime("%Y")
-    elif has_date != False:
+    else:
         datestr = has_date
-    data["art"].append({"title": title, "author": author, "date": datestr, "content": content})
-    post_enn("pcu272/enn/" + name, data) # [remove]
+        
+    item = {"title": title, "author": author, "date": datestr, "content": content, "type": content_type}
+    item = {k: v for k, v in item.items() if v}
+    data["art"].append(item)
     post_enn(name + "/json", data) # [remove]
     post_enn(get_enn_url(name), data)
 
