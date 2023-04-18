@@ -95,8 +95,8 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
 
         # Add information source in parentheses to content start
         # (only if titles are not authored)
-        if not authored_titles:
-            content = "(" + author + ") " + content
+        #if not authored_titles:
+        #    content = "(" + author + ") " + content
 
         # Post article page content
         page_content = ""
@@ -116,7 +116,7 @@ def list_articles(name, num = 20, root_title_length = 50, show_featured = False,
         article_list_line = "/" + article_url + " \t" 
         if authored_titles: # Put author names before article titles
             article_list_line += author + ": "
-        article_list_article_title = (title + (" (" + date + ")" if len(date) != None else ""))[:root_title_length]
+        article_list_article_title = (title + (" (" + date + ")" if date else ""))[:root_title_length]
         article_list_line += article_list_article_title
         article_list = "\n" + article_list_line + article_list
         
